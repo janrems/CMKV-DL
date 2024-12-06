@@ -28,7 +28,22 @@ y_true = model.y_true(x)
 torch.mean(model.dt * torch.sum(torch.abs(y[:,:,0] - y_true),dim=0))/torch.mean(model.dt * torch.sum(torch.abs(y_true),dim=0))
 
 
+import numpy as np
+from sklearn.linear_model import Ridge
 
+# Example data
+X = np.random.rand(100, 10)  # 100 samples, 10 features
+y = np.random.rand(100, 3)   # 100 samples, 3 targets (multivariate)
+
+# Fit Ridge regression
+ridge = Ridge(alpha=1.0)
+ridge.fit(X, y)
+
+a = ridge.coef_
+
+# Predict
+y_pred = ridge.predict(X)
+print(y_pred.shape)  # Output: (100, 3)
 
 
 

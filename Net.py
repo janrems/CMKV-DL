@@ -1,69 +1,105 @@
 import torch
 import numpy as np
 import torch.nn as nn
+from sklearn.linear_model import Ridge
+import signatory
 
 
-class NetFixed(nn.Module):
-    def __init__(self, math_model, dim_h, n_hidden_layers):
-        super(NetFixed, self).__init__()
+class Common_Noise(nn.Module):
+    def __init__(self, math_model, ridge_param, depth):
+        super(Common_Noise, self).__init__()
 
         self.math_model = math_model
+        self.ridge_param = ridge_param
+        self.depth = depth
+        self.augment = signatory.Augment(1,
+                            layer_sizes=(),
+                            kernel_size=1,
+                            include_time=True)
 
         #Layers
-        self.input_bn = nn.BatchNorm1d(2 * math_model.dim_x + 1)
-        self.input_layer = nn.Linear(2 * math_model.dim_x + 1, dim_h)
-        self.layer_list = nn.ModuleList([nn.Linear(dim_h, dim_h) for i in range(n_hidden_layers)])
-        self.bn_list = nn.ModuleList([nn.BatchNorm1d(dim_h) for i in range(n_hidden_layers)])
-        self.output_bn = nn.BatchNorm1d(dim_h)
-        self.output_layer = nn.Linear(dim_h, math_model.dim_y * math_model.dim_d)
-        self.activation = torch.tanh
+        self.linear1 = nn.Linear(2*self.math_model.dim_x + 1, 64)
+        self.linear2 = nn.Linear(64, 32)
+        self.linear3 = nn.Linear(32, self.math_model.dim_x)
 
-        #Backward initial function (From t=-N_delta to t=0
-        self.initial_y = nn.Parameter(torch.rand(math_model.dim_y, 1), requires_grad=True)
+
+
 
 
     #Feed_forward pass
     def one_pass(self, inpt):
-        state = self.input_bn(inpt)
-        state = self.input_layer(state)
-        state = self.activation(state)
-        for i in range(len(self.layer_list)):
-            state = self.bn_list[i](state)
-            state = self.layer_list[i](state)
-            state = self.activation(state)
-        state = self.output_bn(state)
-        state = self.output_layer(state)
-        return state
+        out = torch.relu(self.linear1(inpt))
+        out = torch.relu(self.linear2(out))
+        return self.linear3(out)
 
-    def forward(self, x, dW_f):
+    def conditional_expectation(self, x_t, rough, i):
 
-        y_f = torch.zeros(x.shape[0], self.math_model.dim_y, self.math_model.N)
-        z_f = torch.zeros(x.shape[0], self.math_model.dim_y, self.math_model.dim_d, self.math_model.N)
-        y_p = torch.ones(x.shape[0], self.math_model.dim_y, 1) * self.initial_y
-        y_p = torch.repeat_interleave(y_p, self.math_model.N_delta + 1, dim=-1)
-        z_p = torch.zeros(x.shape[0], self.math_model.dim_y, self.math_model.dim_d, self.math_model.N_delta + 1)
-        y = torch.cat((y_p, y_f), dim=-1)
-        z = torch.cat((z_p, z_f), dim=-1)
 
-        y_t = y_p[:,:,-1]
+        batch= x_t.shape[0]
+
+        ridge = Ridge(alpha=self.ridge_param, tol=1e-6)
+        label = x_t.detach()
+        if i == 0:
+            data = torch.cat([torch.zeros(batch, 1),
+                              torch.zeros(batch, 1)],
+                             dim=1)
+
+            ridge.fit(data.numpy(), label.numpy())
+            l = torch.tensor(ridge.coef_).view(-1, 1)
+            # i=1
+
+            return torch.matmul(torch.zeros(batch, 2), l) + ridge.intercept_
+        if i == 1:
+            data = torch.cat([rough.path[0][:, :2, 0],
+                              torch.ones(batch, 1) * (i / self.math_model.N)], dim=1)
+            ridge.fit(data.numpy(), label.numpy())
+
+        else:
+            data = rough.signature(end=i).cpu().detach()
+
+            ridge.fit(data.numpy(), label.numpy())
+
+        return torch.from_numpy(ridge.predict(data.numpy()))
+
+    def forward(self,  dW, dP, common_noise):
+
+        control_seq = torch.empty((self.batch_size, self.N, self.math_model.dim_x))
+
+        state_seq = torch.empty((self.batch_size, self.N, self.math_model.dim_x))
+
+        cex_seq = torch.empty((self.batch_size, self.N, self.math_model.dim_x))
+
+        rough_path = signatory.Path(self.augment(common_noise), self.depth, basepoint=False)
+
+        x_t = self.math_model.initial(self.batch_size)
+
+        state_seq[:, 0, :] = x_t
+
+        ongoing_cost = torch.zeros(self.batch_size)
+
         for i in range(self.math_model.N):
-            i_t = i + self.math_model.N_delta #index correspodning to current time.
-            i_delta = i #index corresponding to N_delta shifted past time
-            t = i * self.math_model.dt #current time
+            t = self.math_model.dt * i
 
-            inpt = torch.cat((x[:, :, i_t], x[:, :, i_delta], torch.ones(x.size()[0],1) * t), -1)
-            z_t = self.one_pass(inpt).view(-1, self.math_model.dim_y, self.math_model.dim_d)
+            mu_t = self.conditional_expectation(x_t, rough_path, i)
+            cex_seq[:, i, :] = mu_t
+            inpt = torch.cat((x_t, mu_t), 1)
+            inpt = torch.cat((inpt, torch.ones(x_t.size()[0], 1) * t), 1).float()
+            u_t = self.one_pass(inpt)
+            control_seq[:, i, :] = u_t
+            ongoing_cost += self.math_model.f(t, x_t, mu_t, u_t)*self.math_model.dt
 
-            driver = self.math_model.f(t, x[:, :, i_t], x[:, :, i_t], y_t, y[:, :, i_delta], z_t, z[:,:,:,i_delta])
-            vol = torch.matmul(z_t, dW_f[:, :, :, i_delta])
+            if i < self.math_model.N - 1:
+                x_t = self.math_model.forward_step(t, x_t, mu_t, out, dW[:, i, :, :], dP[:, i, :,, :])
 
-            y_t = y_t - driver*self.math_model.dt + vol.view(vol.shape[:-1])
+                state_seq[:, i + 1, :] = x_t
 
-            #Store current values
-            y[:, :, i_t + 1] = y_t
-            z[:, :, :, i_t + 1] = z_t
+        terminal_cost = self.math_model.g(x_t, mu_t, u_t)
 
-        return y_t, y, z
+        loss = torch.mean(ongoing_cost + terminal_cost, dim=0)
+
+        return state_seq, control_seq, cex_seq, loss
+
+
 
 
 
