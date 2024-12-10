@@ -2,7 +2,7 @@ import torch
 import numpy as np
 
 class DataGenerator:
-    def __init__(self, math_model, batch_size, eval_size):
+    def __init__(self, math_model):
         self.math_model = math_model
 
     def brownian_increments(self, size):

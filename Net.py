@@ -95,7 +95,7 @@ class Common_Noise(nn.Module):
 
         terminal_cost = self.math_model.g(x_t, mu_t, u_t)
 
-        loss = torch.mean(ongoing_cost + terminal_cost, dim=0)
+        loss = self.math_model.loss(ongoing_cost, terminal_cost)
 
         return state_seq, control_seq, cex_seq, loss
 
