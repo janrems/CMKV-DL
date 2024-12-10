@@ -62,20 +62,21 @@ class Common_Noise(nn.Module):
         return torch.from_numpy(ridge.predict(data.numpy()))
 
     def forward(self,  dW, dP, common_noise):
+        batch_size = dW.shape[0]
 
-        control_seq = torch.empty((self.batch_size, self.N, self.math_model.dim_x))
+        control_seq = torch.empty((batch_size, self.math_model.N, self.math_model.dim_x))
 
-        state_seq = torch.empty((self.batch_size, self.N, self.math_model.dim_x))
+        state_seq = torch.empty((batch_size, self.math_model.N, self.math_model.dim_x))
 
-        cex_seq = torch.empty((self.batch_size, self.N, self.math_model.dim_x))
+        cex_seq = torch.empty((batch_size, self.math_model.N, self.math_model.dim_x))
 
         rough_path = signatory.Path(self.augment(common_noise), self.depth, basepoint=False)
 
-        x_t = self.math_model.initial(self.batch_size)
+        x_t = self.math_model.initial(batch_size)
 
         state_seq[:, 0, :] = x_t
 
-        ongoing_cost = torch.zeros(self.batch_size)
+        ongoing_cost = torch.zeros(batch_size)
 
         for i in range(self.math_model.N):
             t = self.math_model.dt * i
@@ -89,11 +90,11 @@ class Common_Noise(nn.Module):
             ongoing_cost += self.math_model.f(t, x_t, mu_t, u_t)*self.math_model.dt
 
             if i < self.math_model.N - 1:
-                x_t = self.math_model.forward_step(t, x_t, mu_t, out, dW[:, i, :, :], dP[:, i, :,, :])
+                x_t = self.math_model.forward_step(t, x_t, mu_t, u_t, dW[:, i, :, :], dP[:, i, :, :])
 
                 state_seq[:, i + 1, :] = x_t
 
-        terminal_cost = self.math_model.g(x_t, mu_t, u_t)
+        terminal_cost = self.math_model.g(x_t, mu_t)
 
         loss = self.math_model.loss(ongoing_cost, terminal_cost)
 

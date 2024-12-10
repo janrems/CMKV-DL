@@ -6,7 +6,7 @@ class DataGenerator:
         self.math_model = math_model
 
     def brownian_increments(self, size):
-        dW = torch.randn(size//2, self.math_model.N, self.math_model.dim_W, 1) * np.sqrt(self.math_model.dt)
+        dW = torch.randn(size//2, self.math_model.N, self.math_model.dim_w, 1) * np.sqrt(self.math_model.dt)
         dW = torch.cat((dW, -dW), 0)
         return dW
 
@@ -19,9 +19,9 @@ class DataGenerator:
         sigmas_t = torch.tensor(self.math_model.jump_sds).float().unsqueeze(0)
         sigmas_t = torch.repeat_interleave(sigmas_t, size, 0)
         sigmas_t = sigmas_t.view(-1).unsqueeze(0)
-        sigmas_t = torch.repeat_interleave(sigmas_t, self.math_model, 0)
+        sigmas_t = torch.repeat_interleave(sigmas_t, self.math_model.N, 0)
 
-        if self.math_model.jump_type == "normal":
+        if self.math_model.jump_type == "Normal":
             return torch.normal(mus_t, sigmas_t)
         else:
             raise ValueError("Jump type not implemented")
