@@ -40,15 +40,9 @@ class Common_Noise(nn.Module):
         ridge = Ridge(alpha=self.ridge_param, tol=1e-6)
         label = x_t.detach()
         if i == 0:
-            data = torch.cat([torch.zeros(batch, 1),
-                              torch.zeros(batch, 1)],
-                             dim=1)
-
-            ridge.fit(data.numpy(), label.numpy())
-            l = torch.tensor(ridge.coef_).view(-1, 1)
-            # i=1
-
-            return torch.matmul(torch.zeros(batch, 2), l) + ridge.intercept_
+            out = torch.mean(x_t, dim=0, keepdim=True)
+            out = torch.repeat_interleave(out, batch, 0)
+            return out
         if i == 1:
             data = torch.cat([rough.path[0][:, :2, 0],
                               torch.ones(batch, 1) * (i / self.math_model.N)], dim=1)

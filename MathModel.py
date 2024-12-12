@@ -2,68 +2,6 @@ import numpy as np
 import torch
 from scipy.integrate import odeint
 
-#LQ model normal jump
-class LQJump:
-    def __init__(self, T, N, dim_x, dim_w, dim_n, vol, rates, jump_means, jump_sds, jump_type, common_noise):
-        self.T = T
-        self.N = N
-        self.dt = T / N
-
-        self.dim_x = dim_x
-        self.dim_w = dim_w
-        self.dim_n = dim_n
-
-        self.vol = vol
-
-        self.rates = rates
-        self.jump_means = jump_means
-        self.jump_sds = jump_sds
-        self.jump_type = jump_type
-        self.common_noise = common_noise
-
-    #initial value is drawn from U(0,1)
-    def initial(self, size):
-        return torch.rand(size, self.dim_x)
-
-    #drift (dim_x)
-    def b(self, t, x_t, mu_t):
-        return self.r * x_t
-
-    #diffusion (dim_x x dim_d)
-    def sigma(self, t, x_t, mu_t, u_t):
-        #TODO
-        return torch.ones(x_t.shape[0], self.dim_x, self.dim_w)
-
-    #jump (dim_x x dim_n)
-    def gamma(self, t, x_t, mu_t, u_t):
-        #TODO
-        return torch.ones(x_t.shape[0], self.dim_x, self.dim_n)
-
-    #Compensator
-    def compensator(self, size):
-        expected_jumps = torch.tensor(self.rates) * torch.tensor(self.jump_means)
-        expected_jumps = torch.repeat_interleave(expected_jumps.unsqueeze(0), size, 0)
-        return expected_jumps.unsqueeze(-1)
-
-    def forward_step(self, t, x_t, mu_t, u_t, dW, dP):
-        dx = (self.b(t, x_t, mu_t) * self.dt + torch.matmul(self.sigma(t, x_t, mu_t, u_t), dW) +
-              torch.matmul(self.gamma(t, x_t, mu_t, u_t), dP) -
-              torch.matmul(self.gamma(t, x_t, mu_t, u_t), self.compensator(x_t.shape[0]))) * self.dt
-        return x_t + dx
-
-    #Ongoing cost
-    def f(self, t, x_t, mu_t, u_t):
-        #TODO
-        return - mu_t
-
-    #Terminal cost
-    def g(self, x_T, mu_T):
-        #TODO
-        return x_T
-
-    #Loss function
-    def loss(self, ongoing_cost, terminal_cost):
-        return torch.mean(ongoing_cost + terminal_cost, dim=0)
 
 
 class IBContinuous:
@@ -403,13 +341,15 @@ class LQJump:
 
     #diffusion (dim_x x dim_d)
     def sigma(self, t, x_t, mu_t, u_t):
-        sigma = torch.tensor([self.theta, self.vol], dtype=torch.float32)
-        sigma = torch.repeat_interleave(sigma.unsqueeze(0), self.dim_x, 0)
-        sigma = torch.repeat_interleave(sigma.unsqueeze(0), x_t.shape[0], 0)
+        thetas = torch.ones(x_t.shape[0], self.dim_x, 1) * self.theta
+        vols = torch.tensor(self.vol, dtype=torch.float32).unsqueeze(0)
+        vols = torch.repeat_interleave(vols, x_t.shape[0], 0)
+        vols = vols * mu_t
+        diag = torch.diag_embed(vols, 0)
 
-        ones = torch.ones(x_t.shape[0], self.dim_x, 1)
-        tmp = torch.cat((ones,mu_t.unsqueeze(-1)), dim=2)
-        return sigma*tmp
+        out = torch.cat((thetas, diag), dim=-1)
+
+        return out
 
 
     # jump (dim_x x dim_n)
