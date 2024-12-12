@@ -84,8 +84,9 @@ class DeepSolver:
 
         i = np.random.randint(state_seq.shape[0])
 
-        plt.plot(t, control_seq[i, :, 0].detach().numpy(), color="red", label="Predicted", linewidth=2.0)
-        plt.plot(t, control_seq_true[i, :, 0].detach().numpy(), color="blue", label="Analytical", linewidth=2.0)
+        for j in range(self.math_model.dim_x):
+            plt.plot(t, control_seq[i, :, j].detach().numpy(), color="red", label="Predicted", linewidth=2.0)
+            plt.plot(t, control_seq_true[i, :, j].detach().numpy(), color="blue", label="Analytical", linewidth=2.0)
         # plt.plot(t,opt_c_true2[i,:,0].detach().numpy(),color="black", label="Analytical2", linewidth=2.0)
         plt.legend(prop={'size': 18})
         plt.xlabel("Time", fontsize=18)
@@ -93,8 +94,9 @@ class DeepSolver:
         plt.savefig(self.math_model.path + "control")
         plt.show()
 
-        plt.plot(t, cex_seq[i, :, 0].detach().numpy(), color="red", label="Predicted", linewidth=2.0)
-        plt.plot(t, cex_seq_true[i, :, 0].detach().numpy(), color="blue", label="Analytical", linewidth=2.0)
+        for j in range(self.math_model.dim_x):
+            plt.plot(t, cex_seq[i, :, j].detach().numpy(), color="red", label="Predicted", linewidth=2.0)
+            plt.plot(t, cex_seq_true[i, :, j].detach().numpy(), color="blue", label="Analytical", linewidth=2.0)
         # plt.plot(t,x_true[i,:,0].detach().numpy(),color="green",label="Analytical", linewidth=2.0)
         plt.legend(prop={'size': 18})
         plt.xlabel("Time", fontsize=18)
@@ -102,8 +104,9 @@ class DeepSolver:
         plt.savefig(self.math_model.path + "cex")
         plt.show()
 
-        plt.plot(t, state_seq[i, :, 0].detach().numpy(), color="red", label="Predicted", linewidth=2.0)
-        plt.plot(t, state_seq_true[i, :, 0].detach().numpy(), color="blue", label="Analytical", linewidth=2.0)
+        for j in range(self.math_model.dim_x):
+            plt.plot(t, state_seq[i, :, j].detach().numpy(), color="red", label="Predicted", linewidth=2.0)
+            plt.plot(t, state_seq_true[i, :, j].detach().numpy(), color="blue", label="Analytical", linewidth=2.0)
         plt.legend(prop={'size': 18})
         plt.xlabel("Time", fontsize=18)
         plt.ylabel("State", fontsize=18)

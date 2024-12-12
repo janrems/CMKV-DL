@@ -341,7 +341,8 @@ class LQJump:
 
     #diffusion (dim_x x dim_d)
     def sigma(self, t, x_t, mu_t, u_t):
-        thetas = torch.ones(x_t.shape[0], self.dim_x, 1) * self.theta
+        thetas = torch.tensor(self.theta, dtype=torch.float32).unsqueeze(-1)
+        thetas = torch.repeat_interleave(thetas.unsqueeze(0), x_t.shape[0], 0)
         vols = torch.tensor(self.vol, dtype=torch.float32).unsqueeze(0)
         vols = torch.repeat_interleave(vols, x_t.shape[0], 0)
         vols = vols * mu_t
@@ -384,8 +385,7 @@ class LQJump:
         return torch.mean(ongoing_cost + terminal_cost, dim=0)
 
     def explicit_solution(self, dW, dP, common_noise, state_seq):
-        if self.dim_x != 1:
-            raise ValueError("Explicit solution only implemented for dim_x = 1")
+
 
         def riccati_sys(y, t, theta, vol, mu, sd, l):
             k0, k1, k2, k3 = y
@@ -397,16 +397,24 @@ class LQJump:
         yT = [0.0, -0.5, 0.0, 0.0]
         tb = np.linspace(self.T, 0, self.N)
 
-        sol = odeint(riccati_sys, yT, tb, args=(self.theta, self.vol, self.jump_means[0],
-                                                self.jump_sds[0], self.rates[0]))
-        sol = np.flip(sol, 0)
-        sol = sol.T
+        for i in range(len(self.vol)):
+            sol = odeint(riccati_sys, yT, tb, args=(self.theta[i], self.vol[i], self.jump_means[0],
+                                                    self.jump_sds[0], self.rates[0]))
+            sol = np.flip(sol, 0)
+            sol = sol.T
 
-        sol = np.expand_dims(sol, axis=1)
-        sol = np.repeat(sol, size, axis=1)
-        sol = np.expand_dims(sol, axis=-1)
+            sol = np.expand_dims(sol, axis=1)
+            sol = np.repeat(sol, size, axis=1)
+            sol = np.expand_dims(sol, axis=-1)
 
-        k0, k1, k2, k3 = torch.tensor(sol, dtype=torch.float32)
+            if i == 0:
+                k0, k1, k2, k3 = torch.tensor(sol, dtype=torch.float32)
+            else:
+                k0 = torch.cat((k0, torch.tensor(sol[0], dtype=torch.float32)), dim=-1)
+                k1 = torch.cat((k1, torch.tensor(sol[1], dtype=torch.float32)), dim=-1)
+                k2 = torch.cat((k2, torch.tensor(sol[2], dtype=torch.float32)), dim=-1)
+                k3 = torch.cat((k3, torch.tensor(sol[3], dtype=torch.float32)), dim=-1)
+
         k = 2 * (k1 + k2 + k3)
 
         state_seq_true = state_seq.clone()
@@ -423,10 +431,15 @@ class LQJump:
 
         ongoing_cost = self.f(0, x_t, mu_t, u_t) * self.dt
 
+        thetas = torch.tensor(self.theta, dtype=torch.float32).unsqueeze(0)
+        thetas = torch.repeat_interleave(thetas, size, 0)
+
+        common_noise = torch.repeat_interleave(common_noise, self.dim_x, -1)
+
         for i in range(self.N - 1):
             t = self.dt * i
             x_t = self.forward_step(t, x_t, mu_t, u_t, dW[:, i, :, :], dP[:, i, :, :])
-            mu_t = mu_t + k[:, i, :]*mu_t*self.dt + self.theta*(common_noise[:, i + 1, :] - common_noise[:, i, :])
+            mu_t = mu_t + k[:, i, :]*mu_t*self.dt + thetas*(common_noise[:, i + 1, :] - common_noise[:, i, :])
             u_t = (2 * k1 + k2)[:, i + 1, :] * x_t + (k2 + 2 * k3)[:, i + 1, :] * mu_t
             ongoing_cost += self.f(t, x_t, mu_t, u_t) * self.dt
 
