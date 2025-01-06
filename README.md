@@ -1,7 +1,7 @@
 # Conditional McKean-Vlasov Control With Deep Learning
 
-This is a code that accompanies the paper titled [Deep Learning for Quadratic Hedging in Incomplete Jump Market](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4760864) that is a joint work with prof. Dr. Nacira Agram.
-In particular, we develop an algorithm that learns the optimal control in jump-diffusion models with the inclusion of common noise, where the latter is modelled by regression on signatures of paths. 
+This is a code that accompanies the paper titled [Deep Learning for Quadratic Hedging in Incomplete Jump Market](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4760864) that is a joint work with Prof. Dr. Nacira Agram. Please refer to the abovementioned paper when using code on this repository. 
+In particular, we develop an algorithm that learns the optimal control in jump-diffusion models with the inclusion of common noise, where the latter is modelled by regression on signatures of paths.
 
 ## Code Structure
 
