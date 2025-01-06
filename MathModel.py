@@ -355,7 +355,7 @@ class LQJump:
 
     # jump (dim_x x dim_n)
     def gamma(self, t, x_t, mu_t, u_t):
-        return mu_t.unsqueeze(-1)
+        return torch.diag_embed(mu_t,0)
 
     # Compensator
     def compensator(self, size):
@@ -397,9 +397,9 @@ class LQJump:
         yT = [0.0, -0.5, 0.0, 0.0]
         tb = np.linspace(self.T, 0, self.N)
 
-        for i in range(len(self.vol)):
-            sol = odeint(riccati_sys, yT, tb, args=(self.theta[i], self.vol[i], self.jump_means[0],
-                                                    self.jump_sds[0], self.rates[0]))
+        for i in range(self.dim_x):
+            sol = odeint(riccati_sys, yT, tb, args=(self.theta[i], self.vol[i], self.jump_means[i],
+                                                    self.jump_sds[i], self.rates[i]))
             sol = np.flip(sol, 0)
             sol = sol.T
 

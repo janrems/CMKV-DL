@@ -69,10 +69,19 @@ class DeepSolver:
         return state_seq, control_seq, cex_seq, loss, dW, dP, common_noise
 
 
-    def plot_loss(self, loss_true):
+    def plot_loss(self, loss_true, window):
+
+        def moving_average(a, n):
+            ret = np.cumsum(a, dtype=float)
+            ret[n:] = ret[n:] - ret[:-n]
+            return ret[n - 1:] / n
+
+        loss_ma = moving_average(self.loss_list, n=window)
+        loss_plot = np.concatenate((self.loss_list[:2], loss_ma))
+
         epochs = np.linspace(1, len(self.loss_list), len(self.loss_list))
-        plt.plot(epochs[:], self.loss_list[:] , label="Estimated value", linewidth=3.0)
-        plt.axhline(float(loss_true), color="red", label="True value")
+        plt.plot(epochs[window - 3:], loss_plot[:] , label="Estimated value", linewidth=3.0)
+        plt.axhline(float(loss_true), color="red", label="True value", alpha=0.5)
         plt.legend(prop={'size': 14})
         plt.xlabel("Epoch", fontsize=14)
         plt.ylabel("Loss", fontsize=14)
@@ -84,29 +93,39 @@ class DeepSolver:
 
         i = np.random.randint(state_seq.shape[0])
 
-        for j in range(self.math_model.dim_x):
-            plt.plot(t, control_seq[i, :, j].detach().numpy(), color="red", label="Predicted", linewidth=2.0)
-            plt.plot(t, control_seq_true[i, :, j].detach().numpy(), color="blue", label="Analytical", linewidth=2.0)
-        # plt.plot(t,opt_c_true2[i,:,0].detach().numpy(),color="black", label="Analytical2", linewidth=2.0)
+        for j in range(3):
+            if j == 1:
+                plt.plot(t, control_seq[i, :, j].detach().numpy(), color="red", label="Predicted", linewidth=2.0)
+                plt.plot(t, control_seq_true[i, :, j].detach().numpy(), color="blue", label="Analytical", linewidth=2.0)
+            else:
+                plt.plot(t, control_seq[i, :, j].detach().numpy(), color="red", linewidth=2.0)
+                plt.plot(t, control_seq_true[i, :, j].detach().numpy(), color="blue", linewidth=2.0)
         plt.legend(prop={'size': 18})
         plt.xlabel("Time", fontsize=18)
         plt.ylabel("Control", fontsize=18)
         plt.savefig(self.math_model.path + "control")
         plt.show()
 
-        for j in range(self.math_model.dim_x):
-            plt.plot(t, cex_seq[i, :, j].detach().numpy(), color="red", label="Predicted", linewidth=2.0)
-            plt.plot(t, cex_seq_true[i, :, j].detach().numpy(), color="blue", label="Analytical", linewidth=2.0)
-        # plt.plot(t,x_true[i,:,0].detach().numpy(),color="green",label="Analytical", linewidth=2.0)
+        for j in range(3):
+            if j == 0:
+                plt.plot(t, cex_seq[i, :, j].detach().numpy(), color="red", label="Predicted", linewidth=2.0)
+                plt.plot(t, cex_seq_true[i, :, j].detach().numpy(), color="blue", label="Analytical", linewidth=2.0)
+            else:
+                plt.plot(t, cex_seq[i, :, j].detach().numpy(), color="red", linewidth=2.0)
+                plt.plot(t, cex_seq_true[i, :, j].detach().numpy(), color="blue", linewidth=2.0)
         plt.legend(prop={'size': 18})
         plt.xlabel("Time", fontsize=18)
         plt.ylabel("Cond. Expectation", fontsize=18)
         plt.savefig(self.math_model.path + "cex")
         plt.show()
 
-        for j in range(self.math_model.dim_x):
-            plt.plot(t, state_seq[i, :, j].detach().numpy(), color="red", label="Predicted", linewidth=2.0)
-            plt.plot(t, state_seq_true[i, :, j].detach().numpy(), color="blue", label="Analytical", linewidth=2.0)
+        for j in range(3):
+            if j == 0:
+                plt.plot(t, state_seq[i, :, j].detach().numpy(), color="red", label="Predicted", linewidth=2.0)
+                plt.plot(t, state_seq_true[i, :, j].detach().numpy(), color="blue", label="Analytical", linewidth=2.0)
+            else:
+                plt.plot(t, state_seq[i, :, j].detach().numpy(), color="red", linewidth=2.0)
+                plt.plot(t, state_seq_true[i, :, j].detach().numpy(), color="blue", linewidth=2.0)
         plt.legend(prop={'size': 18})
         plt.xlabel("Time", fontsize=18)
         plt.ylabel("State", fontsize=18)
