@@ -10,30 +10,32 @@ from MathModel import LQCommonJump
 
 from DeepSolver import DeepSolver
 
+path = "Insert_path_here/"
+
 
 np.random.uniform(low=0.05, high=0.4, size=(10))
 
 ib_c = IBContinuous(T=1.0, N=100, dim_x=1, dim_w=2, dim_n=1, reversion=1.0, vol=0.2, rho=0.2, q=1.0, epsilon=1.5,
                     c=1.0, rates=[0.0], jump_means=[0.0], jump_sds=[0.0], jump_type="None", common_noise="Brownian",
-                    path="C:/Users/jan1r/Documents/Faks/Doktorat/CommonNoiseCode/CommonNoise/Graphs/ib_c/")
+                    path=path)
 
 ib_j = IBJump(T=1.0, N=100, dim_x=1, dim_w=2, dim_n=1, reversion=1.0, vol=0.2, rho=0.2, q=1.0, epsilon=1.5,
                     c=1.0, rates=[5.0], jump_means=[0.0], jump_sds=[0.05], jump_type="Normal", common_noise="Brownian",
-                    path="C:/Users/jan1r/Documents/Faks/Doktorat/CommonNoiseCode/CommonNoise/Graphs/ib_j/")
+                    path=path)
 
 ib_cj = IBCommonJump(T=1.0, N=100, dim_x=1, dim_w=1, dim_n=2, reversion=1.0, vol=0.2, rho=0.2, q=1.0, epsilon=1.5,
                     c=1.0, rates=[5.0, 5.0], jump_means=[0.0, 0.0], jump_sds=[0.05, 0.05], jump_type="Normal",
                     common_noise="Poisson",
-                    path="C:/Users/jan1r/Documents/Faks/Doktorat/CommonNoiseCode/CommonNoise/Graphs/ib_cj/")
+                    path=path)
 
 
 lq_j = LQJump(T=1.0, N=100, dim_x=10, dim_w=11, dim_n=10, theta=np.random.uniform(low=0.05, high=0.4, size=(10)), vol=np.random.uniform(low=0.05, high=0.4, size=(10)), rates=10*[5.0], jump_means=10*[0.0],
               jump_sds=10*[0.05], jump_type="Normal", common_noise="Brownian",
-              path="C:/Users/jan1r/Documents/Faks/Doktorat/CommonNoiseCode/CommonNoise/Graphs/lq_j/")
+              path=path)
 
 lq_cj = LQCommonJump(T=1.0, N=100, dim_x=1, dim_w=1, dim_n=2, rates=[5.0, 5.0], jump_means=[0.0, 0.0],
               jump_sds=[0.05, 0.05], jump_type="Normal", common_noise="Poisson",
-              path="C:/Users/jan1r/Documents/Faks/Doktorat/CommonNoiseCode/CommonNoise/Graphs/lq_cj/")
+              path=path)
 
 
 
